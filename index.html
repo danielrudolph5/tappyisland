@@ -16,27 +16,59 @@
                 <button id="startBtn">Enter Azeroth</button>
             </div>
             <div id="scoreDisplay" class="score-display">0</div>
+            <div class="game-stats">
+                <div id="levelDisplay" class="stat-item">Level 1</div>
+                <div id="xpDisplay" class="stat-item">XP: 0 / 100</div>
+                <div id="comboDisplay" class="stat-item combo"></div>
+            </div>
             <div id="idleUI" class="idle-ui">
                 <div class="resource-info">
                     <div class="coins-per-second">Gold/sec: <span id="goldPerSecond">1</span></div>
                 </div>
                 <div class="upgrades-panel">
                     <h3>Talent Upgrades</h3>
-                    <button id="upgradeAutoCollect" class="upgrade-btn">
-                        <div class="upgrade-name">Gold Mine</div>
-                        <div class="upgrade-level level">Level 0</div>
-                        <div class="upgrade-cost">Cost: <span class="cost">10g</span></div>
-                    </button>
-                    <button id="upgradeCoinValue" class="upgrade-btn">
-                        <div class="upgrade-name">Treasure Finder</div>
-                        <div class="upgrade-level level">Level 0</div>
-                        <div class="upgrade-cost">Cost: <span class="cost">25g</span></div>
-                    </button>
-                    <button id="upgradeFlightSpeed" class="upgrade-btn">
-                        <div class="upgrade-name">Swift Flight</div>
-                        <div class="upgrade-level level">Level 0</div>
-                        <div class="upgrade-cost">Cost: <span class="cost">50g</span></div>
-                    </button>
+                    <div class="upgrade-grid">
+                        <button id="upgradeAutoCollect" class="upgrade-btn">
+                            <div class="upgrade-name">Gold Mine</div>
+                            <div class="upgrade-level level">Level 0</div>
+                            <div class="upgrade-cost">Cost: <span class="cost">25g</span></div>
+                        </button>
+                        <button id="upgradeTreasureFinder" class="upgrade-btn">
+                            <div class="upgrade-name">Treasure Finder</div>
+                            <div class="upgrade-level level">Level 0</div>
+                            <div class="upgrade-cost">Cost: <span class="cost">50g</span></div>
+                        </button>
+                        <button id="upgradeFlightSpeed" class="upgrade-btn">
+                            <div class="upgrade-name">Swift Flight</div>
+                            <div class="upgrade-level level">Level 0</div>
+                            <div class="upgrade-cost">Cost: <span class="cost">75g</span></div>
+                        </button>
+                        <button id="upgradeAttackPower" class="upgrade-btn">
+                            <div class="upgrade-name">Fury of the Wild</div>
+                            <div class="upgrade-level level">Level 0</div>
+                            <div class="upgrade-cost">Cost: <span class="cost">100g</span></div>
+                        </button>
+                        <button id="upgradeCritChance" class="upgrade-btn">
+                            <div class="upgrade-name">Precision Strike</div>
+                            <div class="upgrade-level level">Level 0</div>
+                            <div class="upgrade-cost">Cost: <span class="cost">150g</span></div>
+                        </button>
+                        <button id="upgradeAutoAttack" class="upgrade-btn">
+                            <div class="upgrade-name">Eagle Eye</div>
+                            <div class="upgrade-level level">Level 0</div>
+                            <div class="upgrade-cost">Cost: <span class="cost">200g</span></div>
+                        </button>
+                        <button id="upgradeGoldMultiplier" class="upgrade-btn">
+                            <div class="upgrade-name">Prosperity</div>
+                            <div class="upgrade-level level">Level 0</div>
+                            <div class="upgrade-cost">Cost: <span class="cost">300g</span></div>
+                        </button>
+                        <button id="upgradeExperience" class="upgrade-btn">
+                            <div class="upgrade-name">Wisdom</div>
+                            <div class="upgrade-level level">Level 0</div>
+                            <div class="upgrade-cost">Cost: <span class="cost">250g</span></div>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
