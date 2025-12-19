@@ -107,6 +107,13 @@ function calculateStats() {
     while (soldiers.length > targetSoldierCount) {
         soldiers.pop();
     }
+    
+    // Update all existing soldiers with new stats
+    soldiers.forEach(soldier => {
+        soldier.damage = 5 + upgrades.soldierDamage.level * 3;
+        soldier.maxCooldown = Math.max(10, 60 - upgrades.soldierSpeed.level * 5);
+        soldier.attackRange = 150 + upgrades.soldierCount.level * 10;
+    });
 }
 
 calculateStats();
@@ -193,9 +200,12 @@ function spawnSoldier() {
         y: Math.random() * canvas.height,
         damage: 5 + upgrades.soldierDamage.level * 3,
         attackCooldown: 0,
-        maxCooldown: 60 - upgrades.soldierSpeed.level * 5,
+        maxCooldown: Math.max(10, 60 - upgrades.soldierSpeed.level * 5),
         size: 20,
-        color: '#4169E1'
+        color: '#4169E1',
+        angle: 0,
+        targetAngle: 0,
+        attackRange: 150 + upgrades.soldierCount.level * 10
     });
 }
 
@@ -307,13 +317,12 @@ function buyUpgrade(upgradeKey) {
         saveUpgrade(upgradeKey);
         calculateStats();
         
-        // Update soldier stats if needed
-        if (upgradeKey === 'soldierDamage' || upgradeKey === 'soldierSpeed') {
-            soldiers.forEach(soldier => {
-                soldier.damage = 5 + upgrades.soldierDamage.level * 3;
-                soldier.maxCooldown = Math.max(10, 60 - upgrades.soldierSpeed.level * 5);
-            });
-        }
+        // Update all soldiers stats
+        soldiers.forEach(soldier => {
+            soldier.damage = 5 + upgrades.soldierDamage.level * 3;
+            soldier.maxCooldown = Math.max(10, 60 - upgrades.soldierSpeed.level * 5);
+            soldier.attackRange = 150 + upgrades.soldierCount.level * 10;
+        });
         
         saveGame();
         updateUI();
@@ -415,9 +424,14 @@ function update() {
     
     // Update soldiers - auto attack
     soldiers.forEach(soldier => {
+        // Update soldier stats from upgrades
+        soldier.damage = 5 + upgrades.soldierDamage.level * 3;
+        soldier.maxCooldown = Math.max(10, 60 - upgrades.soldierSpeed.level * 5);
+        soldier.attackRange = 150 + upgrades.soldierCount.level * 10;
+        
         soldier.attackCooldown--;
         
-        if (soldier.attackCooldown <= 0 && monsters.length > 0) {
+        if (monsters.length > 0) {
             // Find nearest monster
             let nearest = null;
             let nearestDist = Infinity;
@@ -427,23 +441,40 @@ function update() {
                 const dy = monster.y - soldier.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                if (distance < nearestDist && distance < 150) {
+                if (distance < nearestDist && distance < soldier.attackRange) {
                     nearestDist = distance;
                     nearest = monster;
                 }
             });
             
             if (nearest) {
-                // Attack
-                nearest.health -= soldier.damage;
-                soldier.attackCooldown = soldier.maxCooldown;
+                // Face the target
+                const dx = nearest.x - soldier.x;
+                const dy = nearest.y - soldier.y;
+                soldier.targetAngle = Math.atan2(dy, dx);
                 
-                createParticles(nearest.x, nearest.y, '#4169E1', 5);
-                createTextParticle(nearest.x, nearest.y - 25, '-' + Math.floor(soldier.damage), '#4169E1');
+                // Smoothly rotate toward target
+                let angleDiff = soldier.targetAngle - soldier.angle;
+                // Normalize angle difference
+                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                soldier.angle += angleDiff * 0.2; // Smooth rotation
                 
-                if (nearest.health <= 0) {
-                    killMonster(nearest);
+                // Attack if cooldown is ready
+                if (soldier.attackCooldown <= 0) {
+                    nearest.health -= soldier.damage;
+                    soldier.attackCooldown = soldier.maxCooldown;
+                    
+                    createParticles(nearest.x, nearest.y, '#4169E1', 5);
+                    createTextParticle(nearest.x, nearest.y - 25, '-' + Math.floor(soldier.damage), '#4169E1');
+                    
+                    if (nearest.health <= 0) {
+                        killMonster(nearest);
+                    }
                 }
+            } else {
+                // No target, slowly rotate
+                soldier.angle += 0.01;
             }
         }
     });
@@ -529,6 +560,7 @@ function draw() {
 function drawSoldier(soldier) {
     ctx.save();
     ctx.translate(soldier.x, soldier.y);
+    ctx.rotate(soldier.angle); // Rotate to face target
     
     // Glow
     const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, soldier.size * 2);
@@ -539,27 +571,65 @@ function drawSoldier(soldier) {
     ctx.arc(0, 0, soldier.size * 2, 0, Math.PI * 2);
     ctx.fill();
     
-    // Body
+    // Body (shield/armor shape pointing forward)
     ctx.fillStyle = soldier.color;
     ctx.beginPath();
     ctx.arc(0, 0, soldier.size, 0, Math.PI * 2);
     ctx.fill();
     
+    // Armor detail
+    ctx.strokeStyle = '#1E3A8A';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, soldier.size * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    
     // Highlight
     ctx.fillStyle = '#6A5ACD';
     ctx.beginPath();
-    ctx.arc(-soldier.size * 0.3, -soldier.size * 0.3, soldier.size * 0.4, 0, Math.PI * 2);
+    ctx.arc(-soldier.size * 0.2, -soldier.size * 0.3, soldier.size * 0.3, 0, Math.PI * 2);
     ctx.fill();
     
-    // Weapon indicator
+    // Weapon/Sword pointing forward (in direction of rotation)
     ctx.strokeStyle = '#FFD700';
-    ctx.lineWidth = 2;
+    ctx.fillStyle = '#C0C0C0';
+    ctx.lineWidth = 3;
+    
+    // Sword blade
     ctx.beginPath();
-    ctx.moveTo(0, -soldier.size);
-    ctx.lineTo(0, -soldier.size * 1.5);
+    ctx.moveTo(0, -soldier.size * 0.8);
+    ctx.lineTo(-soldier.size * 0.2, -soldier.size * 1.6);
+    ctx.lineTo(soldier.size * 0.2, -soldier.size * 1.6);
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
     
+    // Sword hilt
+    ctx.strokeStyle = '#8B6914';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-soldier.size * 0.3, -soldier.size * 0.6);
+    ctx.lineTo(soldier.size * 0.3, -soldier.size * 0.6);
+    ctx.stroke();
+    
+    // Eye (forward facing indicator)
+    ctx.fillStyle = '#00FF00';
+    ctx.beginPath();
+    ctx.arc(soldier.size * 0.3, -soldier.size * 0.2, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
     ctx.restore();
+    
+    // Attack range indicator (faded when not attacking)
+    if (soldier.attackCooldown > soldier.maxCooldown * 0.7) {
+        ctx.strokeStyle = 'rgba(65, 105, 225, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(soldier.x, soldier.y, soldier.attackRange, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
 }
 
 function drawMonster(monster) {
