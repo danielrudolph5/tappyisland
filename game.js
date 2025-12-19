@@ -129,6 +129,21 @@ document.getElementById('upgradeCritChance').addEventListener('click', () => buy
 document.getElementById('upgradeAutoGold').addEventListener('click', () => buyUpgrade('autoGold'));
 document.getElementById('upgradeExperience').addEventListener('click', () => buyUpgrade('experience'));
 
+// Toggle upgrades panel
+document.getElementById('upgradesToggle').addEventListener('click', () => {
+    const panel = document.querySelector('.upgrade-grid');
+    const toggle = document.getElementById('upgradesToggle');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'grid';
+        toggle.textContent = '▼ Talent Upgrades';
+        document.getElementById('idleUI').style.maxHeight = '200px';
+    } else {
+        panel.style.display = 'none';
+        toggle.textContent = '▶ Talent Upgrades';
+        document.getElementById('idleUI').style.maxHeight = '60px';
+    }
+});
+
 function startGame() {
     const startScreen = document.getElementById('startScreen');
     if (startScreen) startScreen.classList.add('hidden');
