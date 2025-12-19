@@ -164,12 +164,20 @@ if (player.shield > player.maxShield) {
     player.shield = player.maxShield;
 }
 
-// Auto-start game
-startGame();
-
-setTimeout(() => {
-    updateUI();
-}, 100);
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        startGame();
+        setTimeout(() => {
+            updateUI();
+        }, 100);
+    });
+} else {
+    startGame();
+    setTimeout(() => {
+        updateUI();
+    }, 100);
+}
 
 // Event listeners
 canvas.addEventListener('click', handleClick);
@@ -642,41 +650,55 @@ function update() {
 }
 
 function draw() {
-    // Rich gradient background
-    const bgGradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height));
-    bgGradient.addColorStop(0, '#0f0c29');
-    bgGradient.addColorStop(0.5, '#1a1a2e');
-    bgGradient.addColorStop(1, '#16213e');
+    // Cartoon sky gradient background (bright and playful)
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    bgGradient.addColorStop(0, '#87CEEB'); // Sky blue
+    bgGradient.addColorStop(0.6, '#E0F6FF'); // Light blue
+    bgGradient.addColorStop(1, '#98D8C8'); // Soft green-blue
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Subtle grid pattern
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < canvas.width; i += 50) {
+    // Cartoon clouds (simple, cute)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    for (let i = 0; i < 5; i++) {
+        const cloudX = (i * 180 + frameCount * 0.1) % (canvas.width + 100) - 50;
+        const cloudY = 50 + (i % 3) * 80;
         ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i, canvas.height);
-        ctx.stroke();
+        ctx.arc(cloudX, cloudY, 25, 0, Math.PI * 2);
+        ctx.arc(cloudX + 30, cloudY, 30, 0, Math.PI * 2);
+        ctx.arc(cloudX + 60, cloudY, 25, 0, Math.PI * 2);
+        ctx.arc(cloudX + 30, cloudY - 20, 20, 0, Math.PI * 2);
+        ctx.fill();
     }
-    for (let i = 0; i < canvas.height; i += 50) {
+    
+    // Cartoon ground/grass
+    ctx.fillStyle = '#90EE90'; // Light green
+    ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+    
+    // Grass details
+    ctx.strokeStyle = '#7CCD7C';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < canvas.width; i += 15) {
         ctx.beginPath();
-        ctx.moveTo(0, i);
-        ctx.lineTo(canvas.width, i);
+        ctx.moveTo(i, canvas.height - 30);
+        ctx.lineTo(i + 5, canvas.height - 40);
+        ctx.lineTo(i + 10, canvas.height - 30);
         ctx.stroke();
     }
     
-    // Draw center protection zone (pulsing)
+    // Draw center protection zone (cartoon style - bright and cheerful)
     const pulse = Math.sin(frameCount * 0.1) * 0.1 + 0.9;
-    ctx.strokeStyle = `rgba(255, 215, 0, ${0.15 * pulse})`;
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = `rgba(255, 215, 0, ${0.3 * pulse})`;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 5]);
     ctx.beginPath();
     ctx.arc(player.x, player.y, 60, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.setLineDash([]);
     
-    // Inner circle
-    ctx.strokeStyle = `rgba(255, 215, 0, ${0.3 * pulse})`;
-    ctx.lineWidth = 1;
+    // Inner circle (solid)
+    ctx.strokeStyle = `rgba(255, 215, 0, ${0.5 * pulse})`;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(player.x, player.y, 40, 0, Math.PI * 2);
     ctx.stroke();
@@ -731,61 +753,100 @@ function drawPlayer() {
     ctx.save();
     ctx.translate(player.x, player.y);
     
-    // Shield effect (if active)
+    // Shield effect (if active) - cartoon bubbles
     if (player.shield > 0) {
-        const shieldPulse = Math.sin(frameCount * 0.2) * 0.2 + 0.8;
-        const shieldGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, player.size * 2.5);
-        shieldGradient.addColorStop(0, `rgba(0, 191, 255, ${0.4 * shieldPulse})`);
-        shieldGradient.addColorStop(0.7, `rgba(0, 191, 255, ${0.2 * shieldPulse})`);
-        shieldGradient.addColorStop(1, 'rgba(0, 191, 255, 0)');
+        const shieldPulse = Math.sin(frameCount * 0.15) * 0.15 + 0.85;
+        const shieldGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, player.size * 2.8);
+        shieldGradient.addColorStop(0, `rgba(100, 200, 255, ${0.5 * shieldPulse})`);
+        shieldGradient.addColorStop(0.6, `rgba(100, 200, 255, ${0.3 * shieldPulse})`);
+        shieldGradient.addColorStop(1, 'rgba(100, 200, 255, 0)');
         ctx.fillStyle = shieldGradient;
         ctx.beginPath();
-        ctx.arc(0, 0, player.size * 2.5, 0, Math.PI * 2);
+        ctx.arc(0, 0, player.size * 2.8, 0, Math.PI * 2);
         ctx.fill();
         
-        // Shield rings
-        for (let i = 0; i < 3; i++) {
-            ctx.strokeStyle = `rgba(0, 191, 255, ${0.3 * shieldPulse / (i + 1)})`;
-            ctx.lineWidth = 2;
+        // Floating bubbles
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 / 8) * i + frameCount * 0.05;
+            const radius = player.size * 2.2 + Math.sin(frameCount * 0.1 + i) * 3;
+            const bubbleX = Math.cos(angle) * radius;
+            const bubbleY = Math.sin(angle) * radius;
+            ctx.fillStyle = `rgba(150, 220, 255, ${0.6 * shieldPulse})`;
             ctx.beginPath();
-            ctx.arc(0, 0, player.size * 2 + i * 5, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.arc(bubbleX, bubbleY, 4, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
     
-    // Player core (hexagon shape)
-    const sides = 6;
-    ctx.fillStyle = '#FF6B6B';
+    // Cartoon player - cute character with rounded body
+    // Body (main rounded blob)
+    const bodyGradient = ctx.createRadialGradient(-player.size * 0.3, -player.size * 0.3, 0, 0, 0, player.size);
+    bodyGradient.addColorStop(0, '#FF8C8C');
+    bodyGradient.addColorStop(1, '#FF5A5A');
+    ctx.fillStyle = bodyGradient;
     ctx.beginPath();
-    for (let i = 0; i < sides; i++) {
-        const angle = (Math.PI / 3) * i;
-        const x = Math.cos(angle) * player.size;
-        const y = Math.sin(angle) * player.size;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    }
+    // Rounded blob shape using bezier curves
+    ctx.moveTo(0, -player.size * 0.9);
+    ctx.bezierCurveTo(player.size * 0.6, -player.size * 0.9, player.size * 0.9, -player.size * 0.5, player.size * 0.9, 0);
+    ctx.bezierCurveTo(player.size * 0.9, player.size * 0.5, player.size * 0.6, player.size * 0.9, 0, player.size * 0.9);
+    ctx.bezierCurveTo(-player.size * 0.6, player.size * 0.9, -player.size * 0.9, player.size * 0.5, -player.size * 0.9, 0);
+    ctx.bezierCurveTo(-player.size * 0.9, -player.size * 0.5, -player.size * 0.6, -player.size * 0.9, 0, -player.size * 0.9);
     ctx.closePath();
     ctx.fill();
     
-    // Glow
-    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, player.size * 1.5);
-    glowGradient.addColorStop(0, 'rgba(255, 107, 107, 0.6)');
-    glowGradient.addColorStop(1, 'rgba(255, 107, 107, 0)');
-    ctx.fillStyle = glowGradient;
-    ctx.beginPath();
-    ctx.arc(0, 0, player.size * 1.5, 0, Math.PI * 2);
-    ctx.fill();
+    // Outline
+    ctx.strokeStyle = '#CC4444';
+    ctx.lineWidth = 3;
+    ctx.stroke();
     
-    // Inner core
-    ctx.fillStyle = '#FF8787';
-    ctx.beginPath();
-    ctx.arc(0, 0, player.size * 0.6, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Center dot
+    // Cute eyes
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
-    ctx.arc(0, 0, player.size * 0.3, 0, Math.PI * 2);
+    ctx.arc(-player.size * 0.25, -player.size * 0.2, player.size * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(player.size * 0.25, -player.size * 0.2, player.size * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Eye pupils
+    const blink = Math.sin(frameCount * 0.05) > 0.95 ? 0.1 : 1;
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(-player.size * 0.25, -player.size * 0.2, player.size * 0.15 * blink, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(player.size * 0.25, -player.size * 0.2, player.size * 0.15 * blink, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Eye shine
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(-player.size * 0.3, -player.size * 0.25, player.size * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(player.size * 0.2, -player.size * 0.25, player.size * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cute smile
+    ctx.strokeStyle = '#CC4444';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, player.size * 0.1, player.size * 0.3, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+    
+    // Cheeks (rosy)
+    ctx.fillStyle = '#FFAAAA';
+    ctx.beginPath();
+    ctx.arc(-player.size * 0.6, player.size * 0.1, player.size * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(player.size * 0.6, player.size * 0.1, player.size * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Highlight shine
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(-player.size * 0.3, -player.size * 0.4, player.size * 0.4, player.size * 0.3, -0.5, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.restore();
@@ -836,112 +897,120 @@ function drawSoldier(soldier) {
     ctx.translate(soldier.x, soldier.y);
     ctx.rotate(soldier.angle); // Rotate to face target
     
-    // Enhanced glow with pulse
-    const glowPulse = Math.sin(frameCount * 0.1) * 0.2 + 0.8;
-    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, soldier.size * 2.5);
-    glowGradient.addColorStop(0, `rgba(65, 105, 225, ${0.7 * glowPulse})`);
-    glowGradient.addColorStop(0.5, `rgba(65, 105, 225, ${0.4 * glowPulse})`);
-    glowGradient.addColorStop(1, 'rgba(65, 105, 225, 0)');
+    // Subtle glow
+    const glowPulse = Math.sin(frameCount * 0.08) * 0.1 + 0.9;
+    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, soldier.size * 2);
+    glowGradient.addColorStop(0, `rgba(100, 150, 255, ${0.4 * glowPulse})`);
+    glowGradient.addColorStop(1, 'rgba(100, 150, 255, 0)');
     ctx.fillStyle = glowGradient;
     ctx.beginPath();
-    ctx.arc(0, 0, soldier.size * 2.5, 0, Math.PI * 2);
+    ctx.arc(0, 0, soldier.size * 2, 0, Math.PI * 2);
     ctx.fill();
     
-    // Body with armor gradient
-    const armorGradient = ctx.createRadialGradient(-soldier.size * 0.2, -soldier.size * 0.2, 0, 0, 0, soldier.size);
-    armorGradient.addColorStop(0, '#5A7FD4');
-    armorGradient.addColorStop(1, '#2E4A7A');
-    ctx.fillStyle = armorGradient;
-    ctx.beginPath();
-    ctx.arc(0, 0, soldier.size, 0, Math.PI * 2);
-    ctx.fill();
+    // Cartoon knight body (rounded shield shape)
+    const bodyGradient = ctx.createRadialGradient(-soldier.size * 0.3, -soldier.size * 0.3, 0, 0, 0, soldier.size);
+    bodyGradient.addColorStop(0, '#6B8FD4');
+    bodyGradient.addColorStop(1, '#4A6FA5');
+    ctx.fillStyle = bodyGradient;
     
-    // Armor plates
-    ctx.strokeStyle = '#1E3A8A';
-    ctx.lineWidth = 3;
+    // Rounded shield shape
     ctx.beginPath();
-    ctx.arc(0, 0, soldier.size * 0.85, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // Inner armor circle
-    ctx.strokeStyle = '#4A6FA5';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(0, 0, soldier.size * 0.6, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // Highlight
-    const highlightGradient = ctx.createRadialGradient(-soldier.size * 0.3, -soldier.size * 0.3, 0, -soldier.size * 0.2, -soldier.size * 0.3, soldier.size * 0.4);
-    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = highlightGradient;
-    ctx.beginPath();
-    ctx.arc(-soldier.size * 0.2, -soldier.size * 0.3, soldier.size * 0.4, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Enhanced weapon/sword
-    ctx.strokeStyle = '#FFD700';
-    ctx.fillStyle = '#E8E8E8';
-    ctx.lineWidth = 4;
-    
-    // Sword blade with shine
-    const bladeGradient = ctx.createLinearGradient(0, -soldier.size * 0.8, 0, -soldier.size * 1.6);
-    bladeGradient.addColorStop(0, '#FFFFFF');
-    bladeGradient.addColorStop(0.5, '#C0C0C0');
-    bladeGradient.addColorStop(1, '#808080');
-    ctx.fillStyle = bladeGradient;
-    ctx.beginPath();
-    ctx.moveTo(0, -soldier.size * 0.7);
-    ctx.lineTo(-soldier.size * 0.25, -soldier.size * 1.8);
-    ctx.lineTo(soldier.size * 0.25, -soldier.size * 1.8);
+    ctx.moveTo(0, -soldier.size * 0.9);
+    ctx.bezierCurveTo(soldier.size * 0.6, -soldier.size * 0.9, soldier.size * 0.9, -soldier.size * 0.5, soldier.size * 0.9, 0);
+    ctx.bezierCurveTo(soldier.size * 0.9, soldier.size * 0.5, soldier.size * 0.6, soldier.size * 0.9, 0, soldier.size * 0.9);
+    ctx.bezierCurveTo(-soldier.size * 0.6, soldier.size * 0.9, -soldier.size * 0.9, soldier.size * 0.5, -soldier.size * 0.9, 0);
+    ctx.bezierCurveTo(-soldier.size * 0.9, -soldier.size * 0.5, -soldier.size * 0.6, -soldier.size * 0.9, 0, -soldier.size * 0.9);
     ctx.closePath();
     ctx.fill();
+    
+    // Outline
+    ctx.strokeStyle = '#3A5F8A';
+    ctx.lineWidth = 4;
     ctx.stroke();
     
-    // Sword center line
-    ctx.strokeStyle = '#FFD700';
+    // Armor detail lines
+    ctx.strokeStyle = '#5A7FA5';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, -soldier.size * 0.7);
-    ctx.lineTo(0, -soldier.size * 1.6);
+    ctx.lineTo(0, soldier.size * 0.7);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, soldier.size * 0.6, -Math.PI * 0.3, Math.PI * 0.3);
     ctx.stroke();
     
-    // Sword hilt with detail
-    ctx.fillStyle = '#8B6914';
-    ctx.fillRect(-soldier.size * 0.35, -soldier.size * 0.5, soldier.size * 0.7, soldier.size * 0.15);
+    // Cartoon helmet visor
+    ctx.fillStyle = '#2A4F7A';
+    ctx.beginPath();
+    ctx.ellipse(0, -soldier.size * 0.3, soldier.size * 0.6, soldier.size * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Visor shine
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.beginPath();
+    ctx.ellipse(-soldier.size * 0.2, -soldier.size * 0.35, soldier.size * 0.2, soldier.size * 0.15, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cute eye peeking from visor
+    ctx.fillStyle = '#00FF88';
+    ctx.beginPath();
+    ctx.arc(soldier.size * 0.25, -soldier.size * 0.25, 5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cartoon sword (simple, bold)
+    ctx.fillStyle = '#E0E0E0';
+    ctx.beginPath();
+    // Blade
+    ctx.moveTo(-soldier.size * 0.15, -soldier.size * 0.6);
+    ctx.lineTo(-soldier.size * 0.2, -soldier.size * 1.6);
+    ctx.lineTo(soldier.size * 0.2, -soldier.size * 1.6);
+    ctx.lineTo(soldier.size * 0.15, -soldier.size * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Sword outline
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // Sword shine
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(-soldier.size * 0.1, -soldier.size * 0.7);
+    ctx.lineTo(-soldier.size * 0.1, -soldier.size * 1.4);
+    ctx.lineTo(0, -soldier.size * 1.3);
+    ctx.lineTo(0, -soldier.size * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Hilt
+    ctx.fillStyle = '#8B6F3A';
+    ctx.fillRect(-soldier.size * 0.3, -soldier.size * 0.4, soldier.size * 0.6, soldier.size * 0.12);
     ctx.strokeStyle = '#654321';
     ctx.lineWidth = 2;
-    ctx.strokeRect(-soldier.size * 0.35, -soldier.size * 0.5, soldier.size * 0.7, soldier.size * 0.15);
+    ctx.strokeRect(-soldier.size * 0.3, -soldier.size * 0.4, soldier.size * 0.6, soldier.size * 0.12);
     
-    // Hilt crossguard
+    // Guard
     ctx.strokeStyle = '#654321';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(-soldier.size * 0.4, -soldier.size * 0.42);
-    ctx.lineTo(soldier.size * 0.4, -soldier.size * 0.42);
+    ctx.moveTo(-soldier.size * 0.35, -soldier.size * 0.35);
+    ctx.lineTo(soldier.size * 0.35, -soldier.size * 0.35);
     ctx.stroke();
     
-    // Glowing eye
-    const eyeGlow = ctx.createRadialGradient(soldier.size * 0.25, -soldier.size * 0.15, 0, soldier.size * 0.25, -soldier.size * 0.15, 6);
-    eyeGlow.addColorStop(0, '#00FF00');
-    eyeGlow.addColorStop(1, '#00FF0000');
-    ctx.fillStyle = eyeGlow;
+    // Pommel
+    ctx.fillStyle = '#FFD700';
     ctx.beginPath();
-    ctx.arc(soldier.size * 0.25, -soldier.size * 0.15, 8, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#00FF00';
-    ctx.beginPath();
-    ctx.arc(soldier.size * 0.25, -soldier.size * 0.15, 4, 0, Math.PI * 2);
+    ctx.arc(0, -soldier.size * 0.3, soldier.size * 0.1, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.restore();
     
-    // Attack range indicator (more visible)
+    // Attack range indicator (subtle)
     if (soldier.attackCooldown <= 0) {
-        ctx.strokeStyle = 'rgba(65, 105, 225, 0.3)';
+        ctx.strokeStyle = 'rgba(100, 150, 255, 0.2)';
         ctx.lineWidth = 2;
-        ctx.setLineDash([8, 4]);
+        ctx.setLineDash([6, 6]);
         ctx.beginPath();
         ctx.arc(soldier.x, soldier.y, soldier.attackRange, 0, Math.PI * 2);
         ctx.stroke();
@@ -952,93 +1021,137 @@ function drawSoldier(soldier) {
 function drawMonster(monster) {
     ctx.save();
     ctx.translate(monster.x, monster.y);
-    ctx.rotate(monster.rotation);
+    ctx.rotate(monster.rotation * 0.3); // Slower rotation for cartoon effect
     
-    // Enhanced shadow with blur effect
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    // Cartoon shadow (oval, soft)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.beginPath();
-    ctx.ellipse(0, monster.size + 8, monster.size * 0.9, monster.size * 0.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, monster.size + 6, monster.size * 1.1, monster.size * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
     
-    // Pulsing glow effect
-    const pulse = Math.sin(frameCount * 0.15 + monster.x * 0.01) * 0.1 + 0.9;
-    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, monster.size * 2);
-    glowGradient.addColorStop(0, monster.color + Math.floor(128 * pulse).toString(16).padStart(2, '0'));
-    glowGradient.addColorStop(0.5, monster.color + '60');
+    // Subtle glow
+    const pulse = Math.sin(frameCount * 0.12 + monster.x * 0.01) * 0.08 + 0.92;
+    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, monster.size * 1.8);
+    glowGradient.addColorStop(0, monster.color + Math.floor(80 * pulse).toString(16).padStart(2, '0'));
+    glowGradient.addColorStop(0.7, monster.color + '40');
     glowGradient.addColorStop(1, monster.color + '00');
     ctx.fillStyle = glowGradient;
     ctx.beginPath();
-    ctx.arc(0, 0, monster.size * 2, 0, Math.PI * 2);
+    ctx.arc(0, 0, monster.size * 1.8, 0, Math.PI * 2);
     ctx.fill();
     
-    // Body with gradient
-    const bodyGradient = ctx.createRadialGradient(-monster.size * 0.3, -monster.size * 0.3, 0, 0, 0, monster.size);
-    const darkerColor = darkenColor(monster.color, 20);
-    bodyGradient.addColorStop(0, lightenColor(monster.color, 30));
+    // Cartoon blob body - wobbly, organic shape
+    const wobble = Math.sin(frameCount * 0.1 + monster.x * 0.02) * 0.1;
+    const darkerColor = darkenColor(monster.color, 15);
+    const bodyGradient = ctx.createRadialGradient(-monster.size * 0.4, -monster.size * 0.3, 0, 0, 0, monster.size);
+    bodyGradient.addColorStop(0, lightenColor(monster.color, 25));
+    bodyGradient.addColorStop(0.7, monster.color);
     bodyGradient.addColorStop(1, darkerColor);
     ctx.fillStyle = bodyGradient;
     ctx.beginPath();
-    ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
+    // Create wobbly blob using bezier curves
+    for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 / 8) * i;
+        const wobbleFactor = 1 + Math.sin(angle * 2 + frameCount * 0.1) * 0.15;
+        const x = Math.cos(angle) * monster.size * wobbleFactor;
+        const y = Math.sin(angle) * monster.size * wobbleFactor;
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.closePath();
     ctx.fill();
     
-    // Detailed outline with highlights
-    ctx.strokeStyle = '#000000';
+    // Cartoon outline (thick, bold)
+    ctx.strokeStyle = darkerColor;
     ctx.lineWidth = 4;
     ctx.stroke();
     
-    // Inner detail circle
-    ctx.strokeStyle = darkerColor;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, 0, monster.size * 0.7, 0, Math.PI * 2);
-    ctx.stroke();
+    // Big cartoon eyes (always cute!)
+    const eyeSize = monster.size * 0.35;
+    const eyeY = -monster.size * 0.15;
     
-    // Glowing eyes
-    const eyeGlow = ctx.createRadialGradient(-monster.size * 0.3, -monster.size * 0.2, 0, -monster.size * 0.3, -monster.size * 0.2, monster.size * 0.3);
-    eyeGlow.addColorStop(0, '#FF0000');
-    eyeGlow.addColorStop(1, '#FF000000');
-    ctx.fillStyle = eyeGlow;
-    ctx.beginPath();
-    ctx.arc(-monster.size * 0.3, -monster.size * 0.2, monster.size * 0.25, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(monster.size * 0.3, -monster.size * 0.2, monster.size * 0.25, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Eye pupils
+    // Eye whites
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
-    ctx.arc(-monster.size * 0.25, -monster.size * 0.15, monster.size * 0.08, 0, Math.PI * 2);
+    ctx.arc(-monster.size * 0.35, eyeY, eyeSize, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(monster.size * 0.35, -monster.size * 0.15, monster.size * 0.08, 0, Math.PI * 2);
+    ctx.arc(monster.size * 0.35, eyeY, eyeSize, 0, Math.PI * 2);
     ctx.fill();
     
-    // Highlight shine
-    const highlightGradient = ctx.createRadialGradient(-monster.size * 0.4, -monster.size * 0.4, 0, -monster.size * 0.3, -monster.size * 0.3, monster.size * 0.4);
-    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
-    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = highlightGradient;
+    // Eye outline
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // Eye pupils (looking slightly different direction for character)
+    const pupilOffset = Math.sin(frameCount * 0.08) * 2;
+    ctx.fillStyle = '#000000';
     ctx.beginPath();
-    ctx.arc(-monster.size * 0.3, -monster.size * 0.3, monster.size * 0.4, 0, Math.PI * 2);
+    ctx.arc(-monster.size * 0.35 + pupilOffset, eyeY, eyeSize * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(monster.size * 0.35 + pupilOffset, eyeY, eyeSize * 0.6, 0, Math.PI * 2);
     ctx.fill();
     
-    // Teeth/spikes for some monsters
-    if (monster.size > 50) {
+    // Eye shine (makes them cute!)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(-monster.size * 0.4, eyeY - eyeSize * 0.2, eyeSize * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(monster.size * 0.3, eyeY - eyeSize * 0.2, eyeSize * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cute mouth (varies by size)
+    if (monster.size < 40) {
+        // Small monsters - cute smile
+        ctx.strokeStyle = darkerColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, monster.size * 0.2, monster.size * 0.25, 0.3, Math.PI - 0.3);
+        ctx.stroke();
+    } else {
+        // Larger monsters - open mouth with teeth
         ctx.fillStyle = '#FFFFFF';
-        for (let i = 0; i < 6; i++) {
-            const angle = (Math.PI / 3) * i;
-            const x1 = Math.cos(angle) * monster.size * 0.9;
-            const y1 = Math.sin(angle) * monster.size * 0.9;
-            const x2 = Math.cos(angle) * monster.size * 1.1;
-            const y2 = Math.sin(angle) * monster.size * 1.1;
+        ctx.beginPath();
+        ctx.ellipse(0, monster.size * 0.25, monster.size * 0.3, monster.size * 0.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Teeth
+        for (let i = 0; i < 4; i++) {
+            const toothX = (i - 1.5) * monster.size * 0.15;
             ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.lineTo(Math.cos(angle + 0.2) * monster.size * 1.05, Math.sin(angle + 0.2) * monster.size * 1.05);
+            ctx.moveTo(toothX, monster.size * 0.15);
+            ctx.lineTo(toothX - monster.size * 0.08, monster.size * 0.35);
+            ctx.lineTo(toothX + monster.size * 0.08, monster.size * 0.35);
             ctx.closePath();
             ctx.fill();
         }
+        
+        ctx.strokeStyle = darkerColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+    
+    // Highlight shine (cartoon style)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.ellipse(-monster.size * 0.4, -monster.size * 0.4, monster.size * 0.35, monster.size * 0.3, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cheeks (if small monster)
+    if (monster.size < 45) {
+        ctx.fillStyle = lightenColor(monster.color, 20);
+        ctx.beginPath();
+        ctx.arc(-monster.size * 0.7, monster.size * 0.15, monster.size * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(monster.size * 0.7, monster.size * 0.15, monster.size * 0.15, 0, Math.PI * 2);
+        ctx.fill();
     }
     
     ctx.restore();
