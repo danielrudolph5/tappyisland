@@ -20,6 +20,18 @@ let combo = 0;
 let comboMultiplier = 1;
 let comboTime = 0;
 
+// Player (initialized after canvas size is set)
+const player = {
+    x: 400,
+    y: 300,
+    health: 100,
+    maxHealth: 100,
+    shield: 0,
+    maxShield: 0,
+    shieldRegen: 0,
+    size: 30
+};
+
 // Monsters
 const monsters = [];
 
@@ -83,6 +95,20 @@ const upgrades = {
         multiplier: 2,
         name: 'Wisdom',
         description: 'More experience gain'
+    },
+    shield: {
+        level: parseInt(localStorage.getItem('upgradeShield') || '0'),
+        baseCost: 150,
+        multiplier: 2.5,
+        name: 'Shield',
+        description: 'Adds shield protection'
+    },
+    shieldRegen: {
+        level: parseInt(localStorage.getItem('upgradeShieldRegen') || '0'),
+        baseCost: 200,
+        multiplier: 3,
+        name: 'Shield Regen',
+        description: 'Regenerates shield over time'
     }
 };
 
@@ -98,6 +124,15 @@ const monsterTypes = [
 // Calculate stats
 function calculateStats() {
     goldPerSecond = 1 + upgrades.autoGold.level * 0.5;
+    
+    // Shield stats
+    player.maxShield = upgrades.shield.level * 50;
+    player.shieldRegen = upgrades.shieldRegen.level * 0.5; // per second
+    
+    // Clamp shield to max
+    if (player.shield > player.maxShield) {
+        player.shield = player.maxShield;
+    }
     
     // Update soldier count
     const targetSoldierCount = 1 + upgrades.soldierCount.level;
@@ -116,7 +151,18 @@ function calculateStats() {
     });
 }
 
+// Initialize player from storage
+player.x = canvas.width / 2;
+player.y = canvas.height / 2;
+player.health = Math.min(parseFloat(localStorage.getItem('playerHealth') || '100'), 100);
+player.shield = parseFloat(localStorage.getItem('playerShield') || '0');
+
 calculateStats();
+
+// Ensure shield doesn't exceed max
+if (player.shield > player.maxShield) {
+    player.shield = player.maxShield;
+}
 
 // Auto-start game
 startGame();
@@ -135,6 +181,8 @@ document.getElementById('upgradeGoldReward').addEventListener('click', () => buy
 document.getElementById('upgradeCritChance').addEventListener('click', () => buyUpgrade('critChance'));
 document.getElementById('upgradeAutoGold').addEventListener('click', () => buyUpgrade('autoGold'));
 document.getElementById('upgradeExperience').addEventListener('click', () => buyUpgrade('experience'));
+document.getElementById('upgradeShield').addEventListener('click', () => buyUpgrade('shield'));
+document.getElementById('upgradeShieldRegen').addEventListener('click', () => buyUpgrade('shieldRegen'));
 
 // Toggle upgrades panel
 document.getElementById('upgradesToggle').addEventListener('click', () => {
@@ -143,11 +191,11 @@ document.getElementById('upgradesToggle').addEventListener('click', () => {
     if (panel.style.display === 'none') {
         panel.style.display = 'grid';
         toggle.textContent = '▼ Talent Upgrades';
-        document.getElementById('idleUI').style.maxHeight = '200px';
+        document.getElementById('idleUI').style.maxHeight = '140px';
     } else {
         panel.style.display = 'none';
         toggle.textContent = '▶ Talent Upgrades';
-        document.getElementById('idleUI').style.maxHeight = '60px';
+        document.getElementById('idleUI').style.maxHeight = '35px';
     }
 });
 
@@ -317,6 +365,18 @@ function buyUpgrade(upgradeKey) {
         saveUpgrade(upgradeKey);
         calculateStats();
         
+        // Update shield
+        if (upgradeKey === 'shield') {
+            player.maxShield = upgrades.shield.level * 50;
+            if (player.shield < player.maxShield) {
+                player.shield = player.maxShield; // Fill shield when purchased
+            }
+        }
+        
+        if (upgradeKey === 'shieldRegen') {
+            player.shieldRegen = upgrades.shieldRegen.level * 0.5;
+        }
+        
         // Update all soldiers stats
         soldiers.forEach(soldier => {
             soldier.damage = 5 + upgrades.soldierDamage.level * 3;
@@ -329,23 +389,56 @@ function buyUpgrade(upgradeKey) {
     }
 }
 
+function gameOver() {
+    gameState = 'gameOver';
+    createParticles(player.x, player.y, '#FF0000', 50);
+    createTextParticle(player.x, player.y - 60, 'GAME OVER', '#FF0000');
+    
+    // Reset after a delay
+    setTimeout(() => {
+        player.health = player.maxHealth;
+        player.shield = player.maxShield;
+        monsters.length = 0;
+        particles = [];
+        gameState = 'playing';
+        lastUpdate = Date.now();
+    }, 3000);
+}
+
 function saveGame() {
     localStorage.setItem('gold', gold.toString());
     localStorage.setItem('experience', experience.toString());
     localStorage.setItem('level', level.toString());
+    localStorage.setItem('playerHealth', player.health.toString());
+    localStorage.setItem('playerShield', player.shield.toString());
 }
 
 function saveUpgrade(key) {
-    localStorage.setItem('upgrade' + key.charAt(0).toUpperCase() + key.slice(1), upgrades[key].level.toString());
+    const keyName = key.charAt(0).toUpperCase() + key.slice(1);
+    // Handle camelCase keys properly
+    if (key.includes('Regen')) {
+        localStorage.setItem('upgradeShieldRegen', upgrades[key].level.toString());
+    } else {
+        localStorage.setItem('upgrade' + keyName, upgrades[key].level.toString());
+    }
 }
 
 function updateUI() {
     document.getElementById('scoreDisplay').textContent = formatNumber(gold) + 'g';
     document.getElementById('goldPerSecond').textContent = formatNumber(goldPerSecond.toFixed(1));
-    document.getElementById('levelDisplay').textContent = 'Level ' + level;
-    document.getElementById('xpDisplay').textContent = 'XP: ' + Math.floor(experience) + ' / ' + (level * 100);
-    document.getElementById('comboDisplay').textContent = combo > 0 ? 'Combo: ' + combo + 'x (' + comboMultiplier.toFixed(1) + 'x)' : '';
-    document.getElementById('soldierCount').textContent = 'Soldiers: ' + soldiers.length;
+    document.getElementById('levelDisplay').textContent = 'Lv' + level;
+    document.getElementById('xpDisplay').textContent = Math.floor(experience) + '/' + (level * 100);
+    document.getElementById('comboDisplay').textContent = combo > 0 ? combo + 'x' : '';
+    document.getElementById('soldierCount').textContent = '⚔' + soldiers.length;
+    document.getElementById('playerHealth').textContent = Math.floor(player.health) + '/' + player.maxHealth;
+    
+    const shieldElement = document.getElementById('playerShield');
+    if (player.maxShield > 0) {
+        shieldElement.textContent = Math.floor(player.shield) + '/' + player.maxShield;
+        shieldElement.style.display = '';
+    } else {
+        shieldElement.style.display = 'none';
+    }
     
     Object.keys(upgrades).forEach(key => {
         updateUpgradeButton(key);
@@ -381,6 +474,8 @@ function formatNumber(num) {
 }
 
 function update() {
+    if (gameState !== 'playing') return;
+    
     frameCount++;
     const now = Date.now();
     const deltaTime = (now - lastUpdate) / 1000;
@@ -399,6 +494,54 @@ function update() {
         combo = 0;
         comboMultiplier = 1;
     }
+    
+    // Regenerate shield
+    if (player.shield < player.maxShield && player.shieldRegen > 0) {
+        player.shield = Math.min(player.maxShield, player.shield + player.shieldRegen * deltaTime);
+    }
+    
+    // Check if monsters reach center (damage player)
+    monsters.forEach(monster => {
+        const dx = monster.x - player.x;
+        const dy = monster.y - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < player.size + monster.size / 2) {
+            const damage = monster.maxHealth * 0.1; // 10% of monster health as damage
+            
+            // Shield absorbs damage first
+            if (player.shield > 0) {
+                const shieldDamage = Math.min(damage, player.shield);
+                player.shield -= shieldDamage;
+                createParticles(monster.x, monster.y, '#00BFFF', 10);
+                createTextParticle(monster.x, monster.y - 30, 'SHIELD -' + Math.floor(shieldDamage), '#00BFFF');
+                
+                if (damage > shieldDamage) {
+                    player.health -= (damage - shieldDamage);
+                    createParticles(player.x, player.y, '#FF0000', 10);
+                    createTextParticle(player.x, player.y - 40, '-' + Math.floor(damage - shieldDamage), '#FF0000');
+                }
+            } else {
+                player.health -= damage;
+                createParticles(player.x, player.y, '#FF0000', 15);
+                createTextParticle(player.x, player.y - 40, '-' + Math.floor(damage), '#FF0000');
+            }
+            
+            // Remove monster after dealing damage
+            const index = monsters.indexOf(monster);
+            monsters.splice(index, 1);
+            
+            // Check game over
+            if (player.health <= 0) {
+                player.health = 0;
+                gameOver();
+                return; // Stop updating when game over
+            }
+            
+            saveGame();
+            updateUI();
+        }
+    });
     
     // Spawn monsters
     const spawnRate = Math.max(1500 - level * 30, 300);
@@ -499,12 +642,16 @@ function update() {
 }
 
 function draw() {
-    // Clean dark background
-    ctx.fillStyle = '#1a1a2e';
+    // Rich gradient background
+    const bgGradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height));
+    bgGradient.addColorStop(0, '#0f0c29');
+    bgGradient.addColorStop(0.5, '#1a1a2e');
+    bgGradient.addColorStop(1, '#16213e');
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Subtle grid pattern
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
     ctx.lineWidth = 1;
     for (let i = 0; i < canvas.width; i += 50) {
         ctx.beginPath();
@@ -519,11 +666,19 @@ function draw() {
         ctx.stroke();
     }
     
-    // Draw center target circle
-    ctx.strokeStyle = 'rgba(255, 215, 0, 0.2)';
-    ctx.lineWidth = 2;
+    // Draw center protection zone (pulsing)
+    const pulse = Math.sin(frameCount * 0.1) * 0.1 + 0.9;
+    ctx.strokeStyle = `rgba(255, 215, 0, ${0.15 * pulse})`;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, 50, 0, Math.PI * 2);
+    ctx.arc(player.x, player.y, 60, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Inner circle
+    ctx.strokeStyle = `rgba(255, 215, 0, ${0.3 * pulse})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 40, 0, Math.PI * 2);
     ctx.stroke();
     
     // Draw soldiers
@@ -536,6 +691,9 @@ function draw() {
         drawMonster(monster);
     });
     
+    // Draw player at center
+    drawPlayer();
+    
     // Draw particles
     particles.forEach(particle => {
         ctx.save();
@@ -543,10 +701,22 @@ function draw() {
         
         if (particle.text) {
             ctx.fillStyle = particle.color;
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
             ctx.font = 'bold ' + (16 + (60 - particle.life) * 0.3) + 'px Arial';
             ctx.textAlign = 'center';
+            ctx.strokeText(particle.text, particle.x, particle.y);
             ctx.fillText(particle.text, particle.x, particle.y);
         } else {
+            // Glowing particles
+            const particleGradient = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size * 2);
+            particleGradient.addColorStop(0, particle.color);
+            particleGradient.addColorStop(1, particle.color + '00');
+            ctx.fillStyle = particleGradient;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * 2, 0, Math.PI * 2);
+            ctx.fill();
+            
             ctx.fillStyle = particle.color;
             ctx.beginPath();
             ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
@@ -557,74 +727,221 @@ function draw() {
     });
 }
 
+function drawPlayer() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    
+    // Shield effect (if active)
+    if (player.shield > 0) {
+        const shieldPulse = Math.sin(frameCount * 0.2) * 0.2 + 0.8;
+        const shieldGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, player.size * 2.5);
+        shieldGradient.addColorStop(0, `rgba(0, 191, 255, ${0.4 * shieldPulse})`);
+        shieldGradient.addColorStop(0.7, `rgba(0, 191, 255, ${0.2 * shieldPulse})`);
+        shieldGradient.addColorStop(1, 'rgba(0, 191, 255, 0)');
+        ctx.fillStyle = shieldGradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.size * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Shield rings
+        for (let i = 0; i < 3; i++) {
+            ctx.strokeStyle = `rgba(0, 191, 255, ${0.3 * shieldPulse / (i + 1)})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, player.size * 2 + i * 5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    }
+    
+    // Player core (hexagon shape)
+    const sides = 6;
+    ctx.fillStyle = '#FF6B6B';
+    ctx.beginPath();
+    for (let i = 0; i < sides; i++) {
+        const angle = (Math.PI / 3) * i;
+        const x = Math.cos(angle) * player.size;
+        const y = Math.sin(angle) * player.size;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    
+    // Glow
+    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, player.size * 1.5);
+    glowGradient.addColorStop(0, 'rgba(255, 107, 107, 0.6)');
+    glowGradient.addColorStop(1, 'rgba(255, 107, 107, 0)');
+    ctx.fillStyle = glowGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.size * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Inner core
+    ctx.fillStyle = '#FF8787';
+    ctx.beginPath();
+    ctx.arc(0, 0, player.size * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Center dot
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(0, 0, player.size * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+    
+    // Health bar
+    const barWidth = 100;
+    const barHeight = 8;
+    const barY = player.y - player.size - 35;
+    
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(player.x - barWidth / 2 - 2, barY - 2, barWidth + 4, barHeight + 4);
+    
+    // Health
+    const healthPercent = player.health / player.maxHealth;
+    const healthGradient = ctx.createLinearGradient(player.x - barWidth / 2, barY, player.x + barWidth / 2, barY);
+    healthGradient.addColorStop(0, healthPercent > 0.5 ? '#FF0000' : '#FF4444');
+    healthGradient.addColorStop(1, healthPercent > 0.5 ? '#FF6666' : '#FF0000');
+    ctx.fillStyle = healthGradient;
+    ctx.fillRect(player.x - barWidth / 2, barY, barWidth * healthPercent, barHeight);
+    
+    // Border
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(player.x - barWidth / 2, barY, barWidth, barHeight);
+    
+    // Shield bar (if active)
+    if (player.maxShield > 0) {
+        const shieldBarY = barY - 12;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(player.x - barWidth / 2 - 2, shieldBarY - 2, barWidth + 4, barHeight + 4);
+        
+        const shieldPercent = player.shield / player.maxShield;
+        const shieldGradient = ctx.createLinearGradient(player.x - barWidth / 2, shieldBarY, player.x + barWidth / 2, shieldBarY);
+        shieldGradient.addColorStop(0, '#00BFFF');
+        shieldGradient.addColorStop(1, '#0080FF');
+        ctx.fillStyle = shieldGradient;
+        ctx.fillRect(player.x - barWidth / 2, shieldBarY, barWidth * shieldPercent, barHeight);
+        
+        ctx.strokeStyle = '#00BFFF';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(player.x - barWidth / 2, shieldBarY, barWidth, barHeight);
+    }
+}
+
 function drawSoldier(soldier) {
     ctx.save();
     ctx.translate(soldier.x, soldier.y);
     ctx.rotate(soldier.angle); // Rotate to face target
     
-    // Glow
-    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, soldier.size * 2);
-    glowGradient.addColorStop(0, 'rgba(65, 105, 225, 0.6)');
+    // Enhanced glow with pulse
+    const glowPulse = Math.sin(frameCount * 0.1) * 0.2 + 0.8;
+    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, soldier.size * 2.5);
+    glowGradient.addColorStop(0, `rgba(65, 105, 225, ${0.7 * glowPulse})`);
+    glowGradient.addColorStop(0.5, `rgba(65, 105, 225, ${0.4 * glowPulse})`);
     glowGradient.addColorStop(1, 'rgba(65, 105, 225, 0)');
     ctx.fillStyle = glowGradient;
     ctx.beginPath();
-    ctx.arc(0, 0, soldier.size * 2, 0, Math.PI * 2);
+    ctx.arc(0, 0, soldier.size * 2.5, 0, Math.PI * 2);
     ctx.fill();
     
-    // Body (shield/armor shape pointing forward)
-    ctx.fillStyle = soldier.color;
+    // Body with armor gradient
+    const armorGradient = ctx.createRadialGradient(-soldier.size * 0.2, -soldier.size * 0.2, 0, 0, 0, soldier.size);
+    armorGradient.addColorStop(0, '#5A7FD4');
+    armorGradient.addColorStop(1, '#2E4A7A');
+    ctx.fillStyle = armorGradient;
     ctx.beginPath();
     ctx.arc(0, 0, soldier.size, 0, Math.PI * 2);
     ctx.fill();
     
-    // Armor detail
+    // Armor plates
     ctx.strokeStyle = '#1E3A8A';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(0, 0, soldier.size * 0.7, 0, Math.PI * 2);
+    ctx.arc(0, 0, soldier.size * 0.85, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Inner armor circle
+    ctx.strokeStyle = '#4A6FA5';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, soldier.size * 0.6, 0, Math.PI * 2);
     ctx.stroke();
     
     // Highlight
-    ctx.fillStyle = '#6A5ACD';
+    const highlightGradient = ctx.createRadialGradient(-soldier.size * 0.3, -soldier.size * 0.3, 0, -soldier.size * 0.2, -soldier.size * 0.3, soldier.size * 0.4);
+    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = highlightGradient;
     ctx.beginPath();
-    ctx.arc(-soldier.size * 0.2, -soldier.size * 0.3, soldier.size * 0.3, 0, Math.PI * 2);
+    ctx.arc(-soldier.size * 0.2, -soldier.size * 0.3, soldier.size * 0.4, 0, Math.PI * 2);
     ctx.fill();
     
-    // Weapon/Sword pointing forward (in direction of rotation)
+    // Enhanced weapon/sword
     ctx.strokeStyle = '#FFD700';
-    ctx.fillStyle = '#C0C0C0';
-    ctx.lineWidth = 3;
+    ctx.fillStyle = '#E8E8E8';
+    ctx.lineWidth = 4;
     
-    // Sword blade
+    // Sword blade with shine
+    const bladeGradient = ctx.createLinearGradient(0, -soldier.size * 0.8, 0, -soldier.size * 1.6);
+    bladeGradient.addColorStop(0, '#FFFFFF');
+    bladeGradient.addColorStop(0.5, '#C0C0C0');
+    bladeGradient.addColorStop(1, '#808080');
+    ctx.fillStyle = bladeGradient;
     ctx.beginPath();
-    ctx.moveTo(0, -soldier.size * 0.8);
-    ctx.lineTo(-soldier.size * 0.2, -soldier.size * 1.6);
-    ctx.lineTo(soldier.size * 0.2, -soldier.size * 1.6);
+    ctx.moveTo(0, -soldier.size * 0.7);
+    ctx.lineTo(-soldier.size * 0.25, -soldier.size * 1.8);
+    ctx.lineTo(soldier.size * 0.25, -soldier.size * 1.8);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     
-    // Sword hilt
-    ctx.strokeStyle = '#8B6914';
-    ctx.lineWidth = 3;
+    // Sword center line
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(-soldier.size * 0.3, -soldier.size * 0.6);
-    ctx.lineTo(soldier.size * 0.3, -soldier.size * 0.6);
+    ctx.moveTo(0, -soldier.size * 0.7);
+    ctx.lineTo(0, -soldier.size * 1.6);
     ctx.stroke();
     
-    // Eye (forward facing indicator)
+    // Sword hilt with detail
+    ctx.fillStyle = '#8B6914';
+    ctx.fillRect(-soldier.size * 0.35, -soldier.size * 0.5, soldier.size * 0.7, soldier.size * 0.15);
+    ctx.strokeStyle = '#654321';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-soldier.size * 0.35, -soldier.size * 0.5, soldier.size * 0.7, soldier.size * 0.15);
+    
+    // Hilt crossguard
+    ctx.strokeStyle = '#654321';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-soldier.size * 0.4, -soldier.size * 0.42);
+    ctx.lineTo(soldier.size * 0.4, -soldier.size * 0.42);
+    ctx.stroke();
+    
+    // Glowing eye
+    const eyeGlow = ctx.createRadialGradient(soldier.size * 0.25, -soldier.size * 0.15, 0, soldier.size * 0.25, -soldier.size * 0.15, 6);
+    eyeGlow.addColorStop(0, '#00FF00');
+    eyeGlow.addColorStop(1, '#00FF0000');
+    ctx.fillStyle = eyeGlow;
+    ctx.beginPath();
+    ctx.arc(soldier.size * 0.25, -soldier.size * 0.15, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
     ctx.fillStyle = '#00FF00';
     ctx.beginPath();
-    ctx.arc(soldier.size * 0.3, -soldier.size * 0.2, 3, 0, Math.PI * 2);
+    ctx.arc(soldier.size * 0.25, -soldier.size * 0.15, 4, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.restore();
     
-    // Attack range indicator (faded when not attacking)
-    if (soldier.attackCooldown > soldier.maxCooldown * 0.7) {
-        ctx.strokeStyle = 'rgba(65, 105, 225, 0.2)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
+    // Attack range indicator (more visible)
+    if (soldier.attackCooldown <= 0) {
+        ctx.strokeStyle = 'rgba(65, 105, 225, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 4]);
         ctx.beginPath();
         ctx.arc(soldier.x, soldier.y, soldier.attackRange, 0, Math.PI * 2);
         ctx.stroke();
@@ -637,46 +954,92 @@ function drawMonster(monster) {
     ctx.translate(monster.x, monster.y);
     ctx.rotate(monster.rotation);
     
-    // Shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    // Enhanced shadow with blur effect
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.beginPath();
-    ctx.ellipse(0, monster.size + 5, monster.size * 0.8, monster.size * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, monster.size + 8, monster.size * 0.9, monster.size * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
     
-    // Glow
-    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, monster.size * 1.5);
-    glowGradient.addColorStop(0, monster.color + '80');
+    // Pulsing glow effect
+    const pulse = Math.sin(frameCount * 0.15 + monster.x * 0.01) * 0.1 + 0.9;
+    const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, monster.size * 2);
+    glowGradient.addColorStop(0, monster.color + Math.floor(128 * pulse).toString(16).padStart(2, '0'));
+    glowGradient.addColorStop(0.5, monster.color + '60');
     glowGradient.addColorStop(1, monster.color + '00');
     ctx.fillStyle = glowGradient;
     ctx.beginPath();
-    ctx.arc(0, 0, monster.size * 1.5, 0, Math.PI * 2);
+    ctx.arc(0, 0, monster.size * 2, 0, Math.PI * 2);
     ctx.fill();
     
-    // Body
-    ctx.fillStyle = monster.color;
+    // Body with gradient
+    const bodyGradient = ctx.createRadialGradient(-monster.size * 0.3, -monster.size * 0.3, 0, 0, 0, monster.size);
+    const darkerColor = darkenColor(monster.color, 20);
+    bodyGradient.addColorStop(0, lightenColor(monster.color, 30));
+    bodyGradient.addColorStop(1, darkerColor);
+    ctx.fillStyle = bodyGradient;
     ctx.beginPath();
     ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
     ctx.fill();
     
-    // Darker outline
+    // Detailed outline with highlights
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.stroke();
     
-    // Eyes
-    ctx.fillStyle = '#FF0000';
+    // Inner detail circle
+    ctx.strokeStyle = darkerColor;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(-monster.size * 0.3, -monster.size * 0.2, monster.size * 0.15, 0, Math.PI * 2);
+    ctx.arc(0, 0, monster.size * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Glowing eyes
+    const eyeGlow = ctx.createRadialGradient(-monster.size * 0.3, -monster.size * 0.2, 0, -monster.size * 0.3, -monster.size * 0.2, monster.size * 0.3);
+    eyeGlow.addColorStop(0, '#FF0000');
+    eyeGlow.addColorStop(1, '#FF000000');
+    ctx.fillStyle = eyeGlow;
+    ctx.beginPath();
+    ctx.arc(-monster.size * 0.3, -monster.size * 0.2, monster.size * 0.25, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(monster.size * 0.3, -monster.size * 0.2, monster.size * 0.15, 0, Math.PI * 2);
+    ctx.arc(monster.size * 0.3, -monster.size * 0.2, monster.size * 0.25, 0, Math.PI * 2);
     ctx.fill();
     
-    // Highlight
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    // Eye pupils
+    ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
-    ctx.arc(-monster.size * 0.3, -monster.size * 0.3, monster.size * 0.3, 0, Math.PI * 2);
+    ctx.arc(-monster.size * 0.25, -monster.size * 0.15, monster.size * 0.08, 0, Math.PI * 2);
     ctx.fill();
+    ctx.beginPath();
+    ctx.arc(monster.size * 0.35, -monster.size * 0.15, monster.size * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Highlight shine
+    const highlightGradient = ctx.createRadialGradient(-monster.size * 0.4, -monster.size * 0.4, 0, -monster.size * 0.3, -monster.size * 0.3, monster.size * 0.4);
+    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = highlightGradient;
+    ctx.beginPath();
+    ctx.arc(-monster.size * 0.3, -monster.size * 0.3, monster.size * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Teeth/spikes for some monsters
+    if (monster.size > 50) {
+        ctx.fillStyle = '#FFFFFF';
+        for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i;
+            const x1 = Math.cos(angle) * monster.size * 0.9;
+            const y1 = Math.sin(angle) * monster.size * 0.9;
+            const x2 = Math.cos(angle) * monster.size * 1.1;
+            const y2 = Math.sin(angle) * monster.size * 1.1;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(Math.cos(angle + 0.2) * monster.size * 1.05, Math.sin(angle + 0.2) * monster.size * 1.05);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
     
     ctx.restore();
     
@@ -702,8 +1065,27 @@ function drawMonster(monster) {
     ctx.fillText(monster.name, monster.x, barY - 5);
 }
 
+// Helper functions for colors
+function darkenColor(color, percent) {
+    const num = parseInt(color.replace("#", ""), 16);
+    const r = Math.max(0, ((num >> 16) & 0xFF) - percent);
+    const g = Math.max(0, ((num >> 8) & 0xFF) - percent);
+    const b = Math.max(0, (num & 0xFF) - percent);
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function lightenColor(color, percent) {
+    const num = parseInt(color.replace("#", ""), 16);
+    const r = Math.min(255, ((num >> 16) & 0xFF) + percent);
+    const g = Math.min(255, ((num >> 8) & 0xFF) + percent);
+    const b = Math.min(255, (num & 0xFF) + percent);
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
 function gameLoop() {
-    update();
+    if (gameState === 'playing') {
+        update();
+    }
     draw();
     requestAnimationFrame(gameLoop);
 }
