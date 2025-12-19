@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tappy Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div class="ui-overlay">
+            <div id="startScreen" class="screen">
+                <h1>Tappy Game</h1>
+                <p>Click or press SPACE to fly</p>
+                <p>Avoid the obstacles!</p>
+                <button id="startBtn">Start Game</button>
+            </div>
+            <div id="gameOverScreen" class="screen hidden">
+                <h2>Game Over!</h2>
+                <p>Score: <span id="finalScore">0</span></p>
+                <p>Best: <span id="bestScore">0</span></p>
+                <button id="restartBtn">Play Again</button>
+            </div>
+            <div id="scoreDisplay" class="score-display hidden">0</div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
+
