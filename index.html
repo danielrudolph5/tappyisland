@@ -3,26 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tappy Island</title>
+    <title>World of Warcraft - Idle Adventure</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="game-container">
         <canvas id="gameCanvas"></canvas>
         <div class="ui-overlay">
-            <div id="startScreen" class="screen">
-                <h1>Tappy Island</h1>
-                <p>Click or press SPACE to fly</p>
-                <p>Fly over the beautiful island!</p>
-                <button id="startBtn">Start Game</button>
+            <div id="startScreen" class="screen hidden">
+                <h1>World of Warcraft</h1>
+                <h2>Idle Adventure</h2>
+                <button id="startBtn">Enter Azeroth</button>
             </div>
-            <div id="gameOverScreen" class="screen hidden">
-                <h2>Game Over!</h2>
-                <p>Score: <span id="finalScore">0</span></p>
-                <p>Best: <span id="bestScore">0</span></p>
-                <button id="restartBtn">Play Again</button>
+            <div id="scoreDisplay" class="score-display">0</div>
+            <div id="idleUI" class="idle-ui">
+                <div class="resource-info">
+                    <div class="coins-per-second">Gold/sec: <span id="goldPerSecond">1</span></div>
+                </div>
+                <div class="upgrades-panel">
+                    <h3>Talent Upgrades</h3>
+                    <button id="upgradeAutoCollect" class="upgrade-btn">
+                        <div class="upgrade-name">Gold Mine</div>
+                        <div class="upgrade-level level">Level 0</div>
+                        <div class="upgrade-cost">Cost: <span class="cost">10g</span></div>
+                    </button>
+                    <button id="upgradeCoinValue" class="upgrade-btn">
+                        <div class="upgrade-name">Treasure Finder</div>
+                        <div class="upgrade-level level">Level 0</div>
+                        <div class="upgrade-cost">Cost: <span class="cost">25g</span></div>
+                    </button>
+                    <button id="upgradeFlightSpeed" class="upgrade-btn">
+                        <div class="upgrade-name">Swift Flight</div>
+                        <div class="upgrade-level level">Level 0</div>
+                        <div class="upgrade-cost">Cost: <span class="cost">50g</span></div>
+                    </button>
+                </div>
             </div>
-            <div id="scoreDisplay" class="score-display hidden">0</div>
         </div>
     </div>
     <script src="game.js"></script>
