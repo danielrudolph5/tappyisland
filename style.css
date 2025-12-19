@@ -23,7 +23,7 @@ body {
 
 #gameCanvas {
     display: block;
-    background: linear-gradient(to bottom, #87CEEB 0%, #98D8C8 50%, #F7DC6F 100%);
+    background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 70%, #4682B4 100%);
     border: 3px solid #333;
 }
 
